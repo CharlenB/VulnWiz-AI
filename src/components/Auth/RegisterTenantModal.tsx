@@ -5,17 +5,27 @@ import type { Tenant, TenantPlan, Asset, Vulnerability } from '../../types';
 interface RegisterTenantModalProps {
   onClose: () => void;
   onTenantRegistered: (newTenant: Tenant, initialAssets: Asset[], initialVulns: Vulnerability[]) => void;
+  initialOrgName?: string;
+  initialEmail?: string;
+  initialPlan?: TenantPlan;
+  initialIndustry?: string;
+  isFirstTimeOnboarding?: boolean;
 }
 
 export const RegisterTenantModal: React.FC<RegisterTenantModalProps> = ({
   onClose,
   onTenantRegistered,
+  initialOrgName = '',
+  initialEmail = '',
+  initialPlan = 'Enterprise MSSP',
+  initialIndustry = 'FinTech & Banking Services',
+  isFirstTimeOnboarding = false,
 }) => {
-  const [orgName, setOrgName] = useState('');
-  const [domain, setDomain] = useState('');
-  const [industry, setIndustry] = useState('FinTech & Banking Services');
-  const [adminEmail, setAdminEmail] = useState('');
-  const [plan, setPlan] = useState<TenantPlan>('Enterprise MSSP');
+  const [orgName, setOrgName] = useState(initialOrgName);
+  const [domain, setDomain] = useState(initialOrgName ? initialOrgName.toLowerCase().replace(/[^a-z0-9]/g, '') + '.com' : '');
+  const [industry, setIndustry] = useState(initialIndustry);
+  const [adminEmail, setAdminEmail] = useState(initialEmail);
+  const [plan, setPlan] = useState<TenantPlan>(initialPlan);
   const [isProvisioning, setIsProvisioning] = useState(false);
   const [provisionStep, setProvisionStep] = useState('');
 
@@ -133,8 +143,12 @@ export const RegisterTenantModal: React.FC<RegisterTenantModalProps> = ({
               <Building size={20} color="#FFFFFF" />
             </div>
             <div>
-              <h2 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-main)' }}>Register New Organization Tenant</h2>
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>Self-Service Model A Tenant Onboarding & Provisioning</span>
+              <h2 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-main)' }}>
+                {isFirstTimeOnboarding ? 'Welcome! Set Up Your Organization Tenant' : 'Register New Organization Tenant'}
+              </h2>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>
+                {isFirstTimeOnboarding ? 'Configure your company details to activate your security workspace' : 'Self-Service Model A Tenant Onboarding & Provisioning'}
+              </span>
             </div>
           </div>
           <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-dim)', cursor: 'pointer' }}>

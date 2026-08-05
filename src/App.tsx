@@ -68,24 +68,29 @@ export function App() {
     }
   };
 
+  const [isFirstTimeUser, setIsFirstTimeUser] = useState<boolean>(false);
+
   const handleTenantRegistered = (newTenant: Tenant, seedAssets: Asset[], seedVulns: Vulnerability[]) => {
     MOCK_TENANTS.unshift(newTenant);
     setTenant(newTenant);
-    setAssets(prev => [...seedAssets, ...prev]);
-    setVulnerabilities(prev => [...seedVulns, ...prev]);
+    
+    // Replace default mock datasets with new tenant's own provisioned assets & findings
+    setAssets(seedAssets);
+    setVulnerabilities(seedVulns);
 
     const newLog = {
       id: `log-${Date.now()}`,
       timestamp: new Date().toISOString().replace('T', ' ').slice(0, 19),
-      user: `admin@${newTenant.domain}`,
+      user: currentUser?.email || `admin@${newTenant.domain}`,
       role: 'Super Admin' as UserRole,
       action: 'TENANT_REGISTERED',
-      details: `Self-service tenant registered: ${newTenant.name} (${newTenant.domain}) under ${newTenant.plan} plan.`,
+      details: `First-time tenant workspace provisioned: ${newTenant.name} (${newTenant.domain}) under ${newTenant.plan} plan.`,
       ip: '198.51.100.22',
       status: 'SUCCESS' as const,
     };
     setAuditLogs(prev => [newLog, ...prev]);
     setShowRegisterModal(false);
+    setIsFirstTimeUser(false);
   };
   
   // Navigation & context pass
@@ -250,6 +255,8 @@ export function App() {
         onPaymentSuccess={() => {
           const user = getCurrentUser();
           if (user) setCurrentUserState(user);
+          setIsFirstTimeUser(true);
+          setShowRegisterModal(true);
           setAppMode('platform');
         }}
         onBackToPricing={() => setAppMode('pricing')}
@@ -431,8 +438,16 @@ export function App() {
       {/* Model A: Self-Service Tenant Registration & Provisioning Modal */}
       {showRegisterModal && (
         <RegisterTenantModal
-          onClose={() => setShowRegisterModal(false)}
+          onClose={() => {
+            setShowRegisterModal(false);
+            setIsFirstTimeUser(false);
+          }}
           onTenantRegistered={handleTenantRegistered}
+          initialOrgName={currentUser?.companyName}
+          initialEmail={currentUser?.email}
+          initialPlan={currentUser?.selectedPlan}
+          initialIndustry={currentUser?.industry}
+          isFirstTimeOnboarding={isFirstTimeUser}
         />
       )}
     </div>
