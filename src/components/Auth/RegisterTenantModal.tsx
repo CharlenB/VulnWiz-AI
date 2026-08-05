@@ -229,35 +229,37 @@ export const RegisterTenantModal: React.FC<RegisterTenantModalProps> = ({
               </div>
             </div>
 
-            <div>
-              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-dim)', marginBottom: '6px' }}>
-                Subscription Tier Plan *
-              </label>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
-                {[
-                  { id: 'Standard Pro', price: '$499/mo', desc: 'Up to 10 Assets' },
-                  { id: 'Corporate Security', price: '$1,499/mo', desc: 'Up to 50 Assets' },
-                  { id: 'Enterprise MSSP', price: '$3,999/mo', desc: 'Unlimited & White Label' },
-                ].map(p => (
-                  <div
-                    key={p.id}
-                    onClick={() => setPlan(p.id as TenantPlan)}
-                    style={{
-                      padding: '10px',
-                      borderRadius: '8px',
-                      border: plan === p.id ? '2px solid var(--accent-purple)' : '1px solid var(--border-color)',
-                      background: plan === p.id ? '#EDE9FE' : '#F8FAFC',
-                      cursor: 'pointer',
-                      textAlign: 'center',
-                    }}
-                  >
-                    <div style={{ fontSize: '0.75rem', fontWeight: 700, color: plan === p.id ? 'var(--accent-purple)' : 'var(--text-main)' }}>{p.id}</div>
-                    <div style={{ fontSize: '0.7rem', color: 'var(--accent-purple)', fontWeight: 800 }}>{p.price}</div>
-                    <div style={{ fontSize: '0.65rem', color: 'var(--text-dim)' }}>{p.desc}</div>
-                  </div>
-                ))}
+            {!isFirstTimeOnboarding && (
+              <div>
+                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-dim)', marginBottom: '6px' }}>
+                  Subscription Tier Plan *
+                </label>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
+                  {[
+                    { id: 'Standard Pro', price: '$499/mo', desc: 'Up to 10 Assets' },
+                    { id: 'Corporate Security', price: '$1,499/mo', desc: 'Up to 50 Assets' },
+                    { id: 'Enterprise MSSP', price: '$3,999/mo', desc: 'Unlimited & White Label' },
+                  ].map(p => (
+                    <div
+                      key={p.id}
+                      onClick={() => setPlan(p.id as TenantPlan)}
+                      style={{
+                        padding: '10px',
+                        borderRadius: '8px',
+                        border: plan === p.id ? '2px solid var(--accent-purple)' : '1px solid var(--border-color)',
+                        background: plan === p.id ? '#EDE9FE' : '#F8FAFC',
+                        cursor: 'pointer',
+                        textAlign: 'center',
+                      }}
+                    >
+                      <div style={{ fontSize: '0.75rem', fontWeight: 700, color: plan === p.id ? 'var(--accent-purple)' : 'var(--text-main)' }}>{p.id}</div>
+                      <div style={{ fontSize: '0.7rem', color: 'var(--accent-purple)', fontWeight: 800 }}>{p.price}</div>
+                      <div style={{ fontSize: '0.65rem', color: 'var(--text-dim)' }}>{p.desc}</div>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '12px', borderTop: '1px solid var(--border-color)', paddingTop: '16px' }}>
               <button type="button" className="btn-secondary" onClick={onClose}>
