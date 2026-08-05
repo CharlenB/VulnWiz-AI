@@ -2,7 +2,7 @@
 -- VulnWiz AI Enterprise Multi-Tenant PostgreSQL Schema
 -- Platform: Supabase / PostgreSQL 15+
 -- Author: VulnWiz AI Engineering for LAU.AI
--- Features: Row-Level Security (RLS), UUID Primary Keys, Audit Logging
+-- Features: Row-Level Security (RLS), User Accounts, Stripe Payments, Audit Logging
 -- ============================================================================
 
 -- Enable required PostgreSQL extensions
@@ -22,7 +22,57 @@ CREATE TABLE IF NOT EXISTS tenants (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- 2. ASSETS TABLE
+-- 2. USERS TABLE (SaaS Accounts & Gatekeeping)
+CREATE TABLE IF NOT EXISTS users (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID REFERENCES tenants(id) ON DELETE SET NULL,
+    full_name VARCHAR(255) NOT NULL,
+    email VARCHAR(255) NOT NULL UNIQUE,
+    company_name VARCHAR(255) NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
+    role VARCHAR(50) NOT NULL DEFAULT 'Client Admin',
+    status VARCHAR(50) NOT NULL DEFAULT 'PENDING_PAYMENT' CHECK (status IN ('PENDING_PAYMENT', 'ACTIVE', 'SUSPENDED', 'CANCELED')),
+    selected_plan VARCHAR(50) NOT NULL DEFAULT 'Corporate Security',
+    billing_cycle VARCHAR(20) NOT NULL DEFAULT 'annual',
+    phone VARCHAR(50),
+    industry VARCHAR(150),
+    company_size VARCHAR(50),
+    stripe_customer_id VARCHAR(255),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- 3. SUBSCRIPTIONS TABLE
+CREATE TABLE IF NOT EXISTS subscriptions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    tenant_id UUID REFERENCES tenants(id) ON DELETE SET NULL,
+    plan VARCHAR(50) NOT NULL,
+    billing_cycle VARCHAR(20) NOT NULL CHECK (billing_cycle IN ('monthly', 'annual')),
+    amount NUMERIC(10, 2) NOT NULL,
+    status VARCHAR(50) NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'past_due', 'canceled', 'trailing')),
+    start_date TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    renewal_date TIMESTAMPTZ NOT NULL,
+    payment_provider VARCHAR(50) NOT NULL DEFAULT 'Stripe',
+    cancel_at_period_end BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- 4. PAYMENTS TABLE (Stripe Transactions & Receipts)
+CREATE TABLE IF NOT EXISTS payments (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    transaction_id VARCHAR(255) NOT NULL UNIQUE,
+    amount NUMERIC(10, 2) NOT NULL,
+    currency VARCHAR(10) NOT NULL DEFAULT 'USD',
+    status VARCHAR(50) NOT NULL DEFAULT 'succeeded' CHECK (status IN ('succeeded', 'failed', 'processing')),
+    payment_provider VARCHAR(50) NOT NULL DEFAULT 'Stripe',
+    payment_method VARCHAR(100) NOT NULL,
+    plan VARCHAR(50) NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- 5. ASSETS TABLE
 CREATE TABLE IF NOT EXISTS assets (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
@@ -38,7 +88,7 @@ CREATE TABLE IF NOT EXISTS assets (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- 3. VULNERABILITIES TABLE
+-- 6. VULNERABILITIES TABLE
 CREATE TABLE IF NOT EXISTS vulnerabilities (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
@@ -68,10 +118,10 @@ CREATE TABLE IF NOT EXISTS vulnerabilities (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- 4. AUDIT LOGS TABLE (WORM - Write Once Read Many)
+-- 7. AUDIT LOGS TABLE (WORM - Write Once Read Many)
 CREATE TABLE IF NOT EXISTS audit_logs (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    tenant_id UUID REFERENCES tenants(id) ON DELETE CASCADE,
     user_email VARCHAR(255) NOT NULL,
     role VARCHAR(50) NOT NULL,
     action VARCHAR(100) NOT NULL,
@@ -82,6 +132,9 @@ CREATE TABLE IF NOT EXISTS audit_logs (
 );
 
 -- INDEXES FOR HIGH-PERFORMANCE MULTI-TENANT QUERIES
+CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+CREATE INDEX IF NOT EXISTS idx_subscriptions_user_id ON subscriptions(user_id);
+CREATE INDEX IF NOT EXISTS idx_payments_user_id ON payments(user_id);
 CREATE INDEX IF NOT EXISTS idx_assets_tenant_id ON assets(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_vulns_tenant_id ON vulnerabilities(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_vulns_asset_id ON vulnerabilities(asset_id);
@@ -89,11 +142,14 @@ CREATE INDEX IF NOT EXISTS idx_audit_logs_tenant_id ON audit_logs(tenant_id);
 
 -- ROW-LEVEL SECURITY (RLS) MULTI-TENANT ISOLATION POLICIES
 ALTER TABLE tenants ENABLE ROW LEVEL SECURITY;
+ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE subscriptions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE payments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE assets ENABLE ROW LEVEL SECURITY;
 ALTER TABLE vulnerabilities ENABLE ROW LEVEL SECURITY;
 ALTER TABLE audit_logs ENABLE ROW LEVEL SECURITY;
 
--- Tenants Policy
+-- Tenants RLS Policies
 CREATE POLICY tenant_isolation_policy_assets ON assets
     FOR ALL USING (tenant_id = (SELECT NULLIF(current_setting('app.current_tenant_id', true), '')::UUID));
 
@@ -102,15 +158,3 @@ CREATE POLICY tenant_isolation_policy_vulns ON vulnerabilities
 
 CREATE POLICY tenant_isolation_policy_audit ON audit_logs
     FOR ALL USING (tenant_id = (SELECT NULLIF(current_setting('app.current_tenant_id', true), '')::UUID));
-
--- SEED INITIAL DEFAULT DEMO TENANT
-INSERT INTO tenants (id, name, domain, industry, plan, security_score, previous_score)
-VALUES (
-    'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
-    'Acme Financial Security Inc.',
-    'acmefinancial.com',
-    'FinTech & Banking Services',
-    'Enterprise MSSP',
-    82,
-    76
-) ON CONFLICT (domain) DO NOTHING;
