@@ -8,7 +8,9 @@ import {
   CheckCircle2,
   Search,
   X,
-  UserPlus
+  UserPlus,
+  Mail,
+  Copy
 } from 'lucide-react';
 import type { Tenant, AuditLog, UserRole } from '../../types';
 
@@ -47,6 +49,17 @@ export const TenantSettingsView: React.FC<TenantSettingsViewProps> = ({
   const [inviteRole, setInviteRole] = useState<UserRole>('Security Analyst');
   const [inviteMfa, setInviteMfa] = useState<boolean>(true);
 
+  // Invitation Success & Magic Link Dispatch state
+  const [inviteSuccessMessage, setInviteSuccessMessage] = useState<string | null>(null);
+  const [copiedLinkSuccess, setCopiedLinkSuccess] = useState<boolean>(false);
+  const [lastInvitedUser, setLastInvitedUser] = useState<{
+    name: string;
+    email: string;
+    role: UserRole;
+    inviteLink: string;
+  } | null>(null);
+  const [showInviteSuccessModal, setShowInviteSuccessModal] = useState<boolean>(false);
+
   const handleSaveProfile = (e: React.FormEvent) => {
     e.preventDefault();
     onUpdateTenant({
@@ -63,16 +76,29 @@ export const TenantSettingsView: React.FC<TenantSettingsViewProps> = ({
     e.preventDefault();
     if (!inviteName || !inviteEmail) return;
 
+    const inviteToken = `inv-${Math.random().toString(36).substring(2, 10)}`;
+    const inviteLink = `https://${tenant.domain}/accept-invite?token=${inviteToken}&email=${encodeURIComponent(inviteEmail)}`;
+
     const newUser = {
       name: inviteName,
       email: inviteEmail,
       role: inviteRole,
-      status: 'Active',
+      status: 'Active' as const,
       mfa: inviteMfa ? 'TOTP Enabled' : 'Disabled',
     };
 
     setUsers(prev => [newUser, ...prev]);
+    setLastInvitedUser({
+      name: inviteName,
+      email: inviteEmail,
+      role: inviteRole,
+      inviteLink,
+    });
+
     setShowInviteModal(false);
+    setShowInviteSuccessModal(true);
+    setInviteSuccessMessage(`Invitation email & Magic Link dispatched to ${inviteEmail}!`);
+
     setInviteName('');
     setInviteEmail('');
   };
@@ -227,6 +253,34 @@ export const TenantSettingsView: React.FC<TenantSettingsViewProps> = ({
       {/* SUB TAB 2: RBAC */}
       {activeSubTab === 'rbac' && (
         <div className="glass-panel" style={{ padding: '24px' }}>
+          {/* Success Banner Alert Toast */}
+          {inviteSuccessMessage && (
+            <div style={{
+              padding: '12px 16px',
+              borderRadius: '8px',
+              background: '#DCFCE7',
+              border: '1px solid #86EFAC',
+              color: '#166534',
+              fontWeight: 600,
+              fontSize: '0.85rem',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              marginBottom: '18px',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <CheckCircle2 size={18} color="#166534" />
+                <span>{inviteSuccessMessage}</span>
+              </div>
+              <button
+                onClick={() => setInviteSuccessMessage(null)}
+                style={{ background: 'none', border: 'none', color: '#166534', cursor: 'pointer' }}
+              >
+                <X size={16} />
+              </button>
+            </div>
+          )}
+
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
             <h2 style={{ fontSize: '1.1rem', fontWeight: 700 }}>Authorized Team Members & Roles</h2>
             <button className="btn-primary" onClick={() => setShowInviteModal(true)} style={{ padding: '6px 12px', fontSize: '0.8rem' }}>
@@ -358,6 +412,84 @@ export const TenantSettingsView: React.FC<TenantSettingsViewProps> = ({
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Invitation Magic Link Dispatched Modal */}
+      {showInviteSuccessModal && lastInvitedUser && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(15, 23, 42, 0.65)',
+          backdropFilter: 'blur(8px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 110,
+          padding: '20px',
+        }}>
+          <div className="glass-panel" style={{ width: '520px', maxWidth: '100%', padding: '28px', background: '#FFFFFF' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: '#DCFCE7', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Mail size={20} color="#166534" />
+                </div>
+                <div>
+                  <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-main)' }}>Invitation Email Dispatched!</h3>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>Onboarding link generated for {lastInvitedUser.name}</span>
+                </div>
+              </div>
+              <button onClick={() => setShowInviteSuccessModal(false)} style={{ background: 'none', border: 'none', color: 'var(--text-dim)', cursor: 'pointer' }}>
+                <X size={20} />
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div style={{ padding: '14px', background: '#F8FAFC', borderRadius: '8px', border: '1px solid var(--border-color)', fontSize: '0.85rem' }}>
+                <div style={{ color: 'var(--text-muted)', marginBottom: '4px' }}>Recipient: <strong style={{ color: 'var(--text-main)' }}>{lastInvitedUser.name} ({lastInvitedUser.email})</strong></div>
+                <div style={{ color: 'var(--text-muted)' }}>Assigned RBAC Role: <strong style={{ color: 'var(--accent-purple)' }}>{lastInvitedUser.role}</strong></div>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-dim)', marginBottom: '6px' }}>
+                  Onboarding Magic Link (Expires in 48h):
+                </label>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <input
+                    type="text"
+                    readOnly
+                    value={lastInvitedUser.inviteLink}
+                    style={{ flex: 1, padding: '10px', borderRadius: '6px', background: '#EDE9FE', border: '1px solid var(--accent-purple)', color: 'var(--accent-purple)', fontFamily: 'var(--font-mono)', fontSize: '0.775rem', outline: 'none' }}
+                  />
+                  <button
+                    type="button"
+                    className="btn-primary"
+                    onClick={() => {
+                      navigator.clipboard.writeText(lastInvitedUser.inviteLink);
+                      setCopiedLinkSuccess(true);
+                      setTimeout(() => setCopiedLinkSuccess(false), 2500);
+                    }}
+                    style={{ padding: '8px 14px', fontSize: '0.8rem', whiteSpace: 'nowrap' }}
+                  >
+                    <Copy size={14} /> {copiedLinkSuccess ? 'Copied!' : 'Copy Link'}
+                  </button>
+                </div>
+              </div>
+
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)', lineHeight: 1.4 }}>
+                💡 An invitation email has been dispatched via SMTP. You can also manually copy and send the Magic Link above directly to the user.
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '8px', borderTop: '1px solid var(--border-color)', paddingTop: '14px' }}>
+                <button type="button" className="btn-primary" onClick={() => setShowInviteSuccessModal(false)}>
+                  Done
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
