@@ -35,12 +35,18 @@ import {
 
 import type { Tenant, Asset, Vulnerability, ScanJob, VulnStatus, UserRole, TenantPlan, BillingCycle, UserAccount } from './types';
 import { isTabAllowedForRole } from './services/rbacService';
-import { getCurrentUser } from './services/saasAuthService';
+import { getCurrentUser, setCurrentUser } from './services/saasAuthService';
 
 export function App() {
   // App Mode State: 'landing' | 'pricing' | 'signup' | 'checkout' | 'login' | 'platform'
   const [appMode, setAppMode] = useState<'landing' | 'pricing' | 'signup' | 'checkout' | 'login' | 'platform'>('platform');
   const [currentUser, setCurrentUserState] = useState<UserAccount | null>(getCurrentUser());
+
+  const handleSignOut = () => {
+    setCurrentUser(null);
+    setCurrentUserState(null);
+    setAppMode('landing');
+  };
 
   // Plan Selection State for Signup/Checkout Flow
   const [signupPlan, setSignupPlan] = useState<TenantPlan>('Corporate Security');
@@ -278,6 +284,7 @@ export function App() {
         onRoleChange={handleRoleChange}
         onTenantChange={setTenant}
         onOpenRegisterModal={() => setShowRegisterModal(true)}
+        onSignOut={handleSignOut}
         notificationCount={notificationsCount}
       />
 

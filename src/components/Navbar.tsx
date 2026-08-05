@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Bell, User, Building, ChevronDown, CheckCircle2, Plus } from 'lucide-react';
+import { Bell, User, Building, ChevronDown, CheckCircle2, Plus, LogOut } from 'lucide-react';
 import type { Tenant, UserRole } from '../types';
 import { MOCK_TENANTS } from '../services/storage';
 
@@ -9,6 +9,7 @@ interface NavbarProps {
   onRoleChange: (role: UserRole) => void;
   onTenantChange: (tenant: Tenant) => void;
   onOpenRegisterModal?: () => void;
+  onSignOut?: () => void;
   notificationCount: number;
 }
 
@@ -18,6 +19,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onRoleChange,
   onTenantChange,
   onOpenRegisterModal,
+  onSignOut,
   notificationCount,
 }) => {
   const [showRoleDropdown, setShowRoleDropdown] = useState(false);
@@ -296,7 +298,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           )}
         </div>
 
-        {/* User Profile */}
+        {/* User Profile & Sign Out */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <div style={{
             width: '36px',
@@ -310,6 +312,25 @@ export const Navbar: React.FC<NavbarProps> = ({
           }}>
             <User size={18} color="#FFFFFF" />
           </div>
+
+          {onSignOut && (
+            <button
+              onClick={onSignOut}
+              className="btn-secondary"
+              title="Sign Out of Account"
+              style={{
+                padding: '6px 12px',
+                fontSize: '0.8rem',
+                color: 'var(--accent-red)',
+                borderColor: '#FCA5A5',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+              }}
+            >
+              <LogOut size={14} /> Sign Out
+            </button>
+          )}
         </div>
       </div>
     </header>
