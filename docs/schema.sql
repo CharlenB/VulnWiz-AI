@@ -149,12 +149,15 @@ ALTER TABLE assets ENABLE ROW LEVEL SECURITY;
 ALTER TABLE vulnerabilities ENABLE ROW LEVEL SECURITY;
 ALTER TABLE audit_logs ENABLE ROW LEVEL SECURITY;
 
--- Tenants RLS Policies
+-- Tenants RLS Policies (Idempotent: Drop if exists before creating)
+DROP POLICY IF EXISTS tenant_isolation_policy_assets ON assets;
 CREATE POLICY tenant_isolation_policy_assets ON assets
     FOR ALL USING (tenant_id = (SELECT NULLIF(current_setting('app.current_tenant_id', true), '')::UUID));
 
+DROP POLICY IF EXISTS tenant_isolation_policy_vulns ON vulnerabilities;
 CREATE POLICY tenant_isolation_policy_vulns ON vulnerabilities
     FOR ALL USING (tenant_id = (SELECT NULLIF(current_setting('app.current_tenant_id', true), '')::UUID));
 
+DROP POLICY IF EXISTS tenant_isolation_policy_audit ON audit_logs;
 CREATE POLICY tenant_isolation_policy_audit ON audit_logs
     FOR ALL USING (tenant_id = (SELECT NULLIF(current_setting('app.current_tenant_id', true), '')::UUID));
