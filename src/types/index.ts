@@ -143,3 +143,51 @@ export interface DiscoveredSubdomain {
   isMonitored: boolean;
   discoveredDate: string;
 }
+
+export type AccountStatus = 'PENDING_PAYMENT' | 'ACTIVE' | 'SUSPENDED' | 'CANCELED';
+export type BillingCycle = 'monthly' | 'annual';
+
+export interface UserAccount {
+  id: string;
+  fullName: string;
+  email: string;
+  companyName: string;
+  role: UserRole;
+  phone?: string;
+  industry?: string;
+  companySize?: string;
+  status: AccountStatus;
+  createdAt: string;
+  selectedPlan: TenantPlan;
+  billingCycle: BillingCycle;
+  stripeCustomerId?: string;
+  passwordHash?: string;
+}
+
+export interface Subscription {
+  id: string;
+  userId: string;
+  plan: TenantPlan;
+  billingCycle: BillingCycle;
+  amount: number;
+  status: 'active' | 'past_due' | 'canceled' | 'trailing';
+  startDate: string;
+  renewalDate: string;
+  paymentProvider: 'Stripe';
+  cancelAtPeriodEnd: boolean;
+}
+
+export interface PaymentRecord {
+  id: string;
+  userId: string;
+  userEmail: string;
+  companyName: string;
+  transactionId: string;
+  amount: number;
+  currency: string;
+  status: 'succeeded' | 'failed' | 'processing';
+  paymentProvider: 'Stripe' | 'PayPal' | 'Paddle';
+  paymentMethod: string;
+  createdAt: string;
+  plan: TenantPlan;
+}

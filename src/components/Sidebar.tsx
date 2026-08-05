@@ -11,7 +11,9 @@ import {
   Settings,
   Activity,
   Layers,
-  Award
+  Award,
+  CreditCard,
+  ShieldAlert
 } from 'lucide-react';
 import type { UserRole } from '../types';
 import { isTabAllowedForRole, getRolePermissions } from '../services/rbacService';
@@ -27,7 +29,9 @@ export type NavTab =
   | 'sbom'
   | 'compliance'
   | 'reports' 
-  | 'settings';
+  | 'settings'
+  | 'billing'
+  | 'admin';
 
 interface SidebarProps {
   activeTab: NavTab;
@@ -74,6 +78,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, openCr
         { id: 'database', label: 'Threat Intel Hub', icon: <Database size={16} /> },
         { id: 'reports', label: 'Security Reports', icon: <FileText size={16} /> },
         { id: 'settings', label: 'Tenant & Audit Logs', icon: <Settings size={16} /> },
+      ],
+    },
+    {
+      title: 'SAAS BUSINESS & ADMIN',
+      items: [
+        { id: 'billing', label: 'Subscription Billing', icon: <CreditCard size={16} /> },
+        { id: 'admin', label: 'SaaS Owner Console', icon: <ShieldAlert size={16} /> },
       ],
     },
   ];

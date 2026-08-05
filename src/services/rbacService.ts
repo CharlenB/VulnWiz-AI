@@ -26,7 +26,9 @@ export const ROLE_PERMISSIONS_MAP: Record<UserRole, RolePermissions> = {
       'compliance', 
       'database', 
       'reports', 
-      'settings'
+      'settings',
+      'billing',
+      'admin'
     ],
     canAddAsset: true,
     canTriggerScan: true,
@@ -48,7 +50,8 @@ export const ROLE_PERMISSIONS_MAP: Record<UserRole, RolePermissions> = {
       'sbom', 
       'compliance', 
       'database', 
-      'reports'
+      'reports',
+      'billing'
     ],
     canAddAsset: true,
     canTriggerScan: true,
@@ -70,7 +73,8 @@ export const ROLE_PERMISSIONS_MAP: Record<UserRole, RolePermissions> = {
       'compliance', 
       'database', 
       'reports', 
-      'settings'
+      'settings',
+      'billing'
     ],
     canAddAsset: true,
     canTriggerScan: false,
