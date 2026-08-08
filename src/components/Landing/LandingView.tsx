@@ -33,13 +33,13 @@ export const LandingView: React.FC<LandingViewProps> = ({
   const features = [
     {
       icon: <Radar size={28} color="var(--accent-purple)" />,
-      title: 'Active OWASP & Port Vulnerability Scanner',
-      description: 'Automated continuous network, web, API, and cloud infrastructure scanning with zero false-positive tuning.',
+      title: 'Vulnerability Management Workspace',
+      description: 'A preview of asset inventory, risk prioritization, and remediation workflows. Active scanning is not enabled in this environment.',
     },
     {
       icon: <Bot size={28} color="var(--accent-cyan)" />,
-      title: 'Autonomous AI Security Analyst',
-      description: 'Instant CVSS v3.1 risk calculation, threat prioritization, and automated code-level remediation patches.',
+      title: 'Guided Security Analysis',
+      description: 'Local, rule-based remediation guidance. Hosted AI analysis requires a secured server-side gateway.',
     },
     {
       icon: <Globe size={28} color="var(--accent-blue)" />,
@@ -58,8 +58,8 @@ export const LandingView: React.FC<LandingViewProps> = ({
     },
     {
       icon: <ShieldCheck size={28} color="var(--accent-red)" />,
-      title: 'Multi-Tenant Row-Level Security (RLS)',
-      description: 'PostgreSQL database-level cryptographic isolation ensuring complete privacy for client data.',
+      title: 'Tenant-Isolation Ready Architecture',
+      description: 'Production isolation requires authenticated database policies and server-side authorization, which are not enabled in this preview.',
     },
   ];
 
@@ -108,6 +108,9 @@ export const LandingView: React.FC<LandingViewProps> = ({
 
   return (
     <div style={{ background: '#F8FAFC', minHeight: '100vh', color: '#0F172A', fontFamily: 'var(--font-sans)' }}>
+      <div className="preview-banner" role="status">
+        Preview environment — account access, payment processing, and active scanning are disabled until secure backend integrations are deployed.
+      </div>
       {/* Public Landing Navigation Bar */}
       <nav style={{
         height: '72px',

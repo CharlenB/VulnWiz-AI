@@ -34,7 +34,7 @@ export function validateTargetScope(targetInput: string): ScopeValidationResult 
     try {
       const url = new URL(host);
       host = url.hostname;
-    } catch (e) {
+    } catch {
       return { allowed: false, reason: 'Malformed URL format.' };
     }
   }
@@ -54,10 +54,13 @@ export function validateTargetScope(targetInput: string): ScopeValidationResult 
     }
   }
 
-  // Check prohibited hostnames
-  const lowerHost = host.toLowerCase();
+  // Check prohibited hostnames and normalize bracketed IPv6 literals.
+  const lowerHost = host.toLowerCase().replace(/^\[|\]$/g, '');
   if (
     lowerHost === 'localhost' ||
+    lowerHost === '::1' ||
+    lowerHost.startsWith('fc') ||
+    lowerHost.startsWith('fd') ||
     lowerHost.endsWith('.internal') ||
     lowerHost.endsWith('.local') ||
     lowerHost.endsWith('.lan') ||
@@ -95,7 +98,7 @@ export function sanitizeAiPrompt(rawText: string): string {
   );
 
   // 2. Redact Bearer Tokens & Passwords
-  sanitized = sanitized.replace(/Bearer\s+[A-Za-z0-9\-\._~\+\/]+=*/g, 'Bearer [REDACTED_JWT_TOKEN]');
+  sanitized = sanitized.replace(/Bearer\s+[A-Za-z0-9._~+/=-]+/g, 'Bearer [REDACTED_JWT_TOKEN]');
   sanitized = sanitized.replace(/(password|passwd|pwd|secret|api_key|access_token)\s*=\s*['"]?[^\s'"]+['"]?/gi, '$1=[REDACTED_SECRET]');
 
   // 3. Redact Email Addresses

@@ -1,32 +1,20 @@
-# React + TypeScript + Vite
+# VulnWiz AI
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+React/Vite frontend for the VulnWiz AI security-platform preview.
 
-Currently, two official plugins are available:
+## Local development
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+1. Copy `.env.example` to `.env.local` and set the public Supabase URL and anon/publishable key.
+2. Run `npm install`, then `npm run dev`.
+3. Validate with `npm run build` and `npm run lint`.
 
-## React Compiler
+## Vercel deployment
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+`vercel.json` defines SPA rewrites and browser-security headers. Configure
+`VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in Vercel for every environment.
 
-## Expanding the Oxlint configuration
+Do not use `VITE_*` for service-role keys, Stripe secrets, webhook signing secrets,
+or LLM-provider keys. Keep them only in Vercel's encrypted server-side environment
+variables and access them only from server-side functions.
 
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
-```
-
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+See `docs/REMEDIATION_STATUS.md` for the production launch checklist.

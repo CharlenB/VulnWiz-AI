@@ -82,6 +82,8 @@ export interface Tenant {
   assetsCount: number;
   totalVulns: number;
   openCriticals: number;
+  ownerEmail?: string;
+  associatedEmails?: string[];
 }
 
 export interface AuditLog {
@@ -108,6 +110,10 @@ export interface NvdVulnIntel {
   affectedSoftware: string[];
   references: string[];
   mitreTechnique: string;
+  isExploitedInWild?: boolean;
+  cisaRequiredAction?: string;
+  cisaDueDate?: string;
+  sourceFeed?: 'CISA KEV' | 'NIST NVD' | 'Local Feed';
 }
 
 export interface SbomPackage {

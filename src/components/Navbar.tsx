@@ -1,14 +1,16 @@
 import React, { useState } from 'react';
 import { Bell, User, Building, ChevronDown, CheckCircle2, Plus, LogOut } from 'lucide-react';
-import type { Tenant, UserRole } from '../types';
-import { MOCK_TENANTS } from '../services/storage';
+import type { Tenant, UserRole, UserAccount } from '../types';
+import { getTenantsForUser } from '../services/tenantService';
 
 interface NavbarProps {
   tenant: Tenant;
   currentRole: UserRole;
+  currentUser?: UserAccount | null;
   onRoleChange: (role: UserRole) => void;
   onTenantChange: (tenant: Tenant) => void;
   onOpenRegisterModal?: () => void;
+  onOpenProfile?: () => void;
   onSignOut?: () => void;
   notificationCount: number;
 }
@@ -16,15 +18,20 @@ interface NavbarProps {
 export const Navbar: React.FC<NavbarProps> = ({
   tenant,
   currentRole,
+  currentUser,
   onRoleChange,
   onTenantChange,
   onOpenRegisterModal,
+  onOpenProfile,
   onSignOut,
   notificationCount,
 }) => {
   const [showRoleDropdown, setShowRoleDropdown] = useState(false);
   const [showTenantDropdown, setShowTenantDropdown] = useState(false);
   const [showNotifMenu, setShowNotifMenu] = useState(false);
+
+  const isSuperAdmin = currentRole === 'Super Admin';
+  const availableTenants = getTenantsForUser(currentUser?.email, isSuperAdmin);
 
   const roles: UserRole[] = [
     'Super Admin',
@@ -110,10 +117,10 @@ export const Navbar: React.FC<NavbarProps> = ({
             zIndex: 50,
           }}>
             <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-dim)', padding: '6px 10px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              Switch Active Organization Tenant
+              {isSuperAdmin ? 'Seller Control: All Organizations' : 'Your Assigned Organizations'}
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              {MOCK_TENANTS.map(t => {
+              {availableTenants.map(t => {
                 const isSelected = tenant.id === t.id;
                 return (
                   <div
@@ -145,9 +152,15 @@ export const Navbar: React.FC<NavbarProps> = ({
                   </div>
                 );
               })}
+
+              {availableTenants.length === 0 && (
+                <div style={{ padding: '12px', fontSize: '0.8rem', color: 'var(--text-muted)', textAlign: 'center' }}>
+                  No organization has been provisioned for your account yet. Contact the seller / Super Admin to assign your organization.
+                </div>
+              )}
             </div>
 
-            {onOpenRegisterModal && (
+            {isSuperAdmin && onOpenRegisterModal && (
               <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px solid var(--border-color)' }}>
                 <button
                   onClick={() => {
@@ -170,7 +183,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                     gap: '6px',
                   }}
                 >
-                  <Plus size={14} /> Register New Tenant (Model A)
+                  <Plus size={14} /> Provision Tenant for Buyer (Super Admin Only)
                 </button>
               </div>
             )}
@@ -185,7 +198,8 @@ export const Navbar: React.FC<NavbarProps> = ({
           <button
             onClick={() => setShowRoleDropdown(!showRoleDropdown)}
             className="btn-secondary"
-            style={{ padding: '6px 12px', fontSize: '0.8rem' }}
+            style={{ padding: '6px 12px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '6px' }}
+            title="Click to switch active RBAC role for testing"
           >
             <span style={{ color: 'var(--text-dim)' }}>Role:</span>
             <strong style={{ color: 'var(--accent-purple)' }}>{currentRole}</strong>
@@ -197,12 +211,15 @@ export const Navbar: React.FC<NavbarProps> = ({
               position: 'absolute',
               right: 0,
               top: '44px',
-              width: '200px',
+              width: '220px',
               padding: '8px',
               zIndex: 50,
             }}>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)', padding: '4px 8px' }}>
-                Switch User View Mode
+              <div style={{ fontSize: '0.725rem', fontWeight: 700, color: 'var(--accent-purple)', padding: '4px 8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                Test RBAC Role View
+              </div>
+              <div style={{ fontSize: '0.7rem', color: 'var(--text-dim)', padding: '0 8px 6px 8px', borderBottom: '1px solid var(--border-color)', marginBottom: '4px' }}>
+                Switch view permissions for testing
               </div>
               {roles.map(r => (
                 <div
@@ -221,6 +238,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                     justifyContent: 'space-between',
                     background: currentRole === r ? '#EDE9FE' : 'transparent',
                     color: currentRole === r ? 'var(--accent-purple)' : 'var(--text-main)',
+                    fontWeight: currentRole === r ? 700 : 500,
                   }}
                 >
                   <span>{r}</span>
@@ -300,18 +318,46 @@ export const Navbar: React.FC<NavbarProps> = ({
 
         {/* User Profile & Sign Out */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div style={{
-            width: '36px',
-            height: '36px',
-            borderRadius: '50%',
-            background: 'linear-gradient(135deg, #7C3AED 0%, #6366F1 100%)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            boxShadow: '0 2px 8px rgba(124, 58, 237, 0.3)',
-          }}>
-            <User size={18} color="#FFFFFF" />
-          </div>
+          <button
+            type="button"
+            onClick={onOpenProfile}
+            title="View & Manage User Profile Details"
+            style={{
+              background: '#F8FAFC',
+              border: '1px solid var(--border-color)',
+              borderRadius: '20px',
+              padding: '4px 12px 4px 4px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
+            }}
+          >
+            <div style={{
+              width: '32px',
+              height: '32px',
+              borderRadius: '50%',
+              background: 'linear-gradient(135deg, #7C3AED 0%, #6366F1 100%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 2px 8px rgba(124, 58, 237, 0.3)',
+              color: '#FFFFFF',
+              fontWeight: 700,
+              fontSize: '0.85rem',
+            }}>
+              {currentUser?.fullName ? currentUser.fullName.charAt(0).toUpperCase() : <User size={16} color="#FFFFFF" />}
+            </div>
+            <div style={{ textAlign: 'left' }}>
+              <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-main)', lineHeight: 1.1 }}>
+                {currentUser?.fullName || 'Profile Details'}
+              </div>
+              <div style={{ fontSize: '0.675rem', color: 'var(--accent-purple)', fontWeight: 600 }}>
+                {currentRole}
+              </div>
+            </div>
+          </button>
 
           {onSignOut && (
             <button

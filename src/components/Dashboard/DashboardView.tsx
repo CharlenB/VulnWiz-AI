@@ -219,12 +219,25 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 justifyContent: 'space-between',
                 padding: '10px 14px',
                 borderRadius: '8px',
-                background: 'rgba(30, 41, 59, 0.4)',
-                border: '1px solid var(--border-color)',
+                background: 'transparent',
+                borderBottom: '1px solid var(--border-color)',
               }}>
                 <div>
-                  <div style={{ fontWeight: 600, fontSize: '0.85rem' }}>{asset.name}</div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>{asset.target}</div>
+                  <div style={{ fontWeight: 700, fontSize: '0.875rem', color: 'var(--text-main)' }}>{asset.name}</div>
+                  <a 
+                    href={asset.target} 
+                    target="_blank" 
+                    rel="noreferrer"
+                    style={{ 
+                      fontSize: '0.775rem', 
+                      color: 'var(--accent-purple)', 
+                      fontFamily: 'var(--font-mono)', 
+                      fontWeight: 600,
+                      textDecoration: 'none'
+                    }}
+                  >
+                    {asset.target}
+                  </a>
                 </div>
                 <div style={{ display: 'flex', gap: '6px' }}>
                   <span className="badge badge-critical">{asset.vulnerabilityCounts.critical} Crit</span>

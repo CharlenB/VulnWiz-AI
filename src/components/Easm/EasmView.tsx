@@ -110,14 +110,14 @@ export const EasmView: React.FC<EasmViewProps> = ({ onImportAsset }) => {
 
       {/* Root Domain Search Input */}
       <form onSubmit={handleRunRecon} className="glass-panel" style={{ padding: '20px', display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', background: '#090D16', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '10px 14px', flex: 1, minWidth: '280px' }}>
-          <Globe size={18} color="var(--accent-cyan)" />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', background: '#FFFFFF', border: '1px solid var(--accent-purple)', borderRadius: '8px', padding: '10px 14px', flex: 1, minWidth: '280px' }}>
+          <Globe size={18} color="var(--accent-purple)" />
           <input
             type="text"
             placeholder="Enter corporate root domain (e.g. acmefinancial.com)..."
             value={rootDomain}
             onChange={e => setRootDomain(e.target.value)}
-            style={{ background: 'transparent', border: 'none', color: '#fff', fontSize: '0.9rem', width: '100%', outline: 'none' }}
+            style={{ background: 'transparent', border: 'none', color: 'var(--accent-purple)', fontWeight: 600, fontSize: '0.9rem', width: '100%', outline: 'none' }}
           />
         </div>
 
@@ -134,14 +134,14 @@ export const EasmView: React.FC<EasmViewProps> = ({ onImportAsset }) => {
             Discovered Subdomains ({filtered.length})
           </h3>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#090D16', border: '1px solid var(--border-color)', borderRadius: '6px', padding: '6px 12px', width: '260px' }}>
-            <Search size={14} color="var(--text-dim)" />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#FFFFFF', border: '1px solid var(--accent-purple)', borderRadius: '6px', padding: '6px 12px', width: '260px' }}>
+            <Search size={14} color="var(--accent-purple)" />
             <input
               type="text"
               placeholder="Filter subdomains..."
               value={query}
               onChange={e => setQuery(e.target.value)}
-              style={{ background: 'transparent', border: 'none', color: '#fff', fontSize: '0.8rem', width: '100%', outline: 'none' }}
+              style={{ background: 'transparent', border: 'none', color: 'var(--accent-purple)', fontWeight: 600, fontSize: '0.8rem', width: '100%', outline: 'none' }}
             />
           </div>
         </div>

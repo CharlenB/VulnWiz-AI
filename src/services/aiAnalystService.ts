@@ -1,5 +1,9 @@
 import type { Vulnerability, Asset } from '../types';
 import { sanitizeAiPrompt } from './securityGuards';
+import {
+  fetchLiveAiAnalysisFromActiveProvider,
+  fetchLiveAiChatFromActiveProvider,
+} from './llmProviderService';
 
 export interface AiAnalysisResult {
   technicalExplanation: string;
@@ -9,6 +13,7 @@ export interface AiAnalysisResult {
   stepByStepRemediation: string[];
   codeFix: string;
   complianceImpact: string[];
+  isLiveOpenAi?: boolean;
 }
 
 export function generateAiAnalysis(vuln: Vulnerability, asset?: Asset): AiAnalysisResult {
@@ -40,7 +45,27 @@ export function generateAiAnalysis(vuln: Vulnerability, asset?: Asset): AiAnalys
       'ISO 27001:2022 Control A.8.8 - Management of Technical Vulnerabilities',
       'NIST SP 800-53 Rev 5 RA-5 - Vulnerability Monitoring and Scanning',
     ],
+    isLiveOpenAi: false,
   };
+}
+
+export async function generateAiAnalysisLive(
+  vuln: Vulnerability,
+  asset?: Asset
+): Promise<{ result: AiAnalysisResult; provider: string }> {
+  try {
+    const { result, providerName } = await fetchLiveAiAnalysisFromActiveProvider(vuln, asset);
+    return {
+      result: { ...result, isLiveOpenAi: true },
+      provider: providerName,
+    };
+  } catch (err) {
+    console.warn('Live LLM provider call failed, falling back to local rule engine:', err);
+    return {
+      result: generateAiAnalysis(vuln, asset),
+      provider: 'Local Rule Engine',
+    };
+  }
 }
 
 export function generateAiChatResponse(userQuery: string, currentVulns: Vulnerability[]): string {
@@ -67,3 +92,22 @@ export function generateAiChatResponse(userQuery: string, currentVulns: Vulnerab
 
   return `🤖 **VulnWiz AI Security Assistant**: I have analyzed your query "${userQuery}". Based on your current enterprise security posture (Score: 82/100), your primary focus should be resolving open Critical and High findings on your Web and API assets. Is there a specific CVE, OWASP finding, or remediation snippet you would like me to review?`;
 }
+
+export async function generateAiChatResponseLive(
+  userQuery: string,
+  currentVulns: Vulnerability[],
+  chatHistory: { sender: 'user' | 'bot'; text: string }[] = []
+): Promise<{ text: string; provider: string }> {
+  try {
+    const { text, providerName } = await fetchLiveAiChatFromActiveProvider(userQuery, currentVulns, chatHistory);
+    return { text, provider: providerName };
+  } catch (err) {
+    console.warn('Live LLM chat call failed, falling back to local assistant:', err);
+    return {
+      text: generateAiChatResponse(userQuery, currentVulns),
+      provider: 'Local Rule Engine',
+    };
+  }
+}
+
+

@@ -135,7 +135,7 @@ export const ScannerView: React.FC<ScannerViewProps> = ({
 
           {/* Asset Selection */}
           <div>
-            <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-dim)', marginBottom: '8px' }}>
+            <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-dim)', marginBottom: '8px' }}>
               Select Target Asset *
             </label>
             <select
@@ -145,15 +145,17 @@ export const ScannerView: React.FC<ScannerViewProps> = ({
                 width: '100%',
                 padding: '10px 12px',
                 borderRadius: '8px',
-                background: '#090D16',
-                border: '1px solid var(--border-color)',
-                color: '#fff',
-                fontWeight: 600,
+                background: '#FFFFFF',
+                border: '1px solid var(--accent-purple)',
+                color: 'var(--accent-purple)',
+                fontWeight: 700,
+                fontSize: '0.875rem',
                 outline: 'none',
+                cursor: 'pointer',
               }}
             >
               {assets.map(a => (
-                <option key={a.id} value={a.id}>
+                <option key={a.id} value={a.id} style={{ background: '#FFFFFF', color: '#0F172A', fontWeight: 500 }}>
                   {a.name} ({a.target}) - {a.type.toUpperCase()}
                 </option>
               ))}
@@ -163,19 +165,19 @@ export const ScannerView: React.FC<ScannerViewProps> = ({
           {/* Target Summary Card */}
           {selectedAsset && (
             <div style={{
-              background: '#070B14',
-              border: '1px solid var(--border-color)',
+              background: 'linear-gradient(135deg, #F3E8FF 0%, #EDE9FE 100%)',
+              border: '1px solid #DDD6FE',
               borderRadius: '8px',
-              padding: '12px',
-              fontSize: '0.8rem',
+              padding: '14px',
+              fontSize: '0.825rem',
             }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                <span style={{ color: 'var(--text-dim)' }}>Target Endpoint:</span>
-                <span style={{ color: 'var(--accent-cyan)', fontFamily: 'var(--font-mono)' }}>{selectedAsset.target}</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                <span style={{ color: '#475569', fontWeight: 600 }}>Target Endpoint:</span>
+                <span style={{ color: 'var(--accent-purple)', fontFamily: 'var(--font-mono)', fontWeight: 700 }}>{selectedAsset.target}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--text-dim)' }}>Asset Owner:</span>
-                <span style={{ color: 'var(--text-muted)' }}>{selectedAsset.owner}</span>
+                <span style={{ color: '#475569', fontWeight: 600 }}>Asset Owner:</span>
+                <span style={{ color: '#0F172A', fontWeight: 600 }}>{selectedAsset.owner}</span>
               </div>
             </div>
           )}

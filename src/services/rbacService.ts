@@ -50,8 +50,7 @@ export const ROLE_PERMISSIONS_MAP: Record<UserRole, RolePermissions> = {
       'sbom', 
       'compliance', 
       'database', 
-      'reports',
-      'billing'
+      'reports'
     ],
     canAddAsset: true,
     canTriggerScan: true,

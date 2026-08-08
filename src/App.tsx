@@ -1,17 +1,14 @@
-import { useState } from 'react';
+import { lazy, Suspense, useState, useEffect } from 'react';
 import { Navbar } from './components/Navbar';
 import { Sidebar } from './components/Sidebar';
 import type { NavTab } from './components/Sidebar';
 import { DashboardView } from './components/Dashboard/DashboardView';
 import { AssetManagementView } from './components/Assets/AssetManagementView';
 import { EasmView } from './components/Easm/EasmView';
-import { ScannerView } from './components/Scanner/ScannerView';
 import { VulnerabilityManagementView } from './components/Vulnerabilities/VulnerabilityManagementView';
-import { AIAnalystView } from './components/AIAnalyst/AIAnalystView';
 import { VulnDatabaseView } from './components/VulnDatabase/VulnDatabaseView';
 import { SbomView } from './components/Sbom/SbomView';
 import { ComplianceView } from './components/Compliance/ComplianceView';
-import { ReportGeneratorView } from './components/Reports/ReportGeneratorView';
 import { TenantSettingsView } from './components/Settings/TenantSettingsView';
 import { BillingView } from './components/Billing/BillingView';
 import { AdminConsoleView } from './components/Admin/AdminConsoleView';
@@ -24,26 +21,79 @@ import { CheckoutView } from './components/Checkout/CheckoutView';
 import { LoginView } from './components/Auth/LoginView';
 
 import { RegisterTenantModal } from './components/Auth/RegisterTenantModal';
+import { AcceptInviteModal } from './components/Auth/AcceptInviteModal';
+import { UserProfileModal } from './components/Profile/UserProfileModal';
+
+const ScannerView = lazy(() => import('./components/Scanner/ScannerView').then(module => ({ default: module.ScannerView })));
+const AIAnalystView = lazy(() => import('./components/AIAnalyst/AIAnalystView').then(module => ({ default: module.AIAnalystView })));
+const ReportGeneratorView = lazy(() => import('./components/Reports/ReportGeneratorView').then(module => ({ default: module.ReportGeneratorView })));
 
 import { 
   INITIAL_TENANT, 
   INITIAL_ASSETS, 
   INITIAL_VULNERABILITIES, 
   INITIAL_AUDIT_LOGS,
-  MOCK_TENANTS
 } from './services/storage';
 
 import type { Tenant, Asset, Vulnerability, ScanJob, VulnStatus, UserRole, TenantPlan, BillingCycle, UserAccount } from './types';
 import { isTabAllowedForRole } from './services/rbacService';
 import { getCurrentUser, setCurrentUser } from './services/saasAuthService';
+import { getInvitationByToken, type UserInvitation } from './services/invitationService';
+import { getTenantsForUser, addTenantBySuperAdmin } from './services/tenantService';
 
 export function App() {
   // App Mode State: 'landing' | 'pricing' | 'signup' | 'checkout' | 'login' | 'platform'
-  const [appMode, setAppMode] = useState<'landing' | 'pricing' | 'signup' | 'checkout' | 'login' | 'platform'>('platform');
+  const [appMode, setAppMode] = useState<'landing' | 'pricing' | 'signup' | 'checkout' | 'login' | 'platform'>('landing');
   const [currentUser, setCurrentUserState] = useState<UserAccount | null>(getCurrentUser());
+
+  // User Invitation State
+  const [activeInvitation, setActiveInvitation] = useState<UserInvitation | null>(null);
+  const [showProfileModal, setShowProfileModal] = useState<boolean>(false);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get('inviteToken');
+    if (token) {
+      const invitation = getInvitationByToken(token);
+      if (invitation && invitation.status === 'pending') {
+        setActiveInvitation(invitation);
+      }
+    }
+  }, []);
+
+  const handleAcceptInviteSuccess = (user: UserAccount) => {
+    setCurrentUserState(user);
+    setCurrentRole(user.role);
+    setTenant(prev => ({
+      ...prev,
+      name: user.companyName || prev.name,
+    }));
+    setActiveInvitation(null);
+    setAppMode('platform');
+    setActiveTab('dashboard');
+
+    // Clean up URL parameter
+    const url = new URL(window.location.href);
+    url.searchParams.delete('inviteToken');
+    window.history.replaceState({}, '', url.toString());
+
+    // Add immutable audit trail log
+    const newLog = {
+      id: `log-${Date.now()}`,
+      timestamp: new Date().toISOString().replace('T', ' ').slice(0, 19),
+      user: user.email,
+      role: user.role,
+      action: 'USER_INVITE_ACCEPTED',
+      details: `Team member accepted invitation and registered active account under ${user.role} role.`,
+      ip: '198.51.100.89',
+      status: 'SUCCESS' as const,
+    };
+    setAuditLogs(prev => [newLog, ...prev]);
+  };
 
   const handleSignOut = () => {
     setCurrentUser(null);
+    setCurrentUserState(null);
     setCurrentUserState(null);
     setAppMode('landing');
   };
@@ -54,12 +104,29 @@ export function App() {
 
   // Platform Active Workspace State
   const [activeTab, setActiveTab] = useState<NavTab>('dashboard');
-  const [tenant, setTenant] = useState<Tenant>(INITIAL_TENANT);
+  const [currentRole, setCurrentRole] = useState<UserRole>('Security Analyst');
+  const [tenant, setTenant] = useState<Tenant>(() => {
+    const initialUser = getCurrentUser();
+    const available = getTenantsForUser(initialUser?.email, true);
+    return available[0] || INITIAL_TENANT;
+  });
   const [assets, setAssets] = useState<Asset[]>(INITIAL_ASSETS);
   const [vulnerabilities, setVulnerabilities] = useState<Vulnerability[]>(INITIAL_VULNERABILITIES);
   const [auditLogs, setAuditLogs] = useState(INITIAL_AUDIT_LOGS);
-  const [currentRole, setCurrentRole] = useState<UserRole>('Super Admin');
   const [showRegisterModal, setShowRegisterModal] = useState<boolean>(false);
+  const [provisionInitialEmail, setProvisionInitialEmail] = useState<string>('');
+
+  // Automatically adjust tenant workspace when active user or role changes
+  useEffect(() => {
+    const isSuperAdmin = currentRole === 'Super Admin';
+    const available = getTenantsForUser(currentUser?.email, isSuperAdmin);
+    if (available.length > 0) {
+      const matchCurrent = available.find(t => t.id === tenant.id);
+      if (!matchCurrent) {
+        setTenant(available[0]);
+      }
+    }
+  }, [currentUser, currentRole]);
 
   const handleRoleChange = (newRole: UserRole) => {
     setCurrentRole(newRole);
@@ -71,7 +138,7 @@ export function App() {
   const [isFirstTimeUser, setIsFirstTimeUser] = useState<boolean>(false);
 
   const handleTenantRegistered = (newTenant: Tenant, seedAssets: Asset[], seedVulns: Vulnerability[]) => {
-    MOCK_TENANTS.unshift(newTenant);
+    addTenantBySuperAdmin(newTenant);
     setTenant(newTenant);
     
     // Replace default mock datasets with new tenant's own provisioned assets & findings
@@ -81,10 +148,10 @@ export function App() {
     const newLog = {
       id: `log-${Date.now()}`,
       timestamp: new Date().toISOString().replace('T', ' ').slice(0, 19),
-      user: currentUser?.email || `admin@${newTenant.domain}`,
+      user: currentUser?.email || 'seller.admin@vulnwiz.ai',
       role: 'Super Admin' as UserRole,
       action: 'TENANT_REGISTERED',
-      details: `First-time tenant workspace provisioned: ${newTenant.name} (${newTenant.domain}) under ${newTenant.plan} plan.`,
+      details: `Seller Super Admin provisioned new organization: ${newTenant.name} (${newTenant.domain}) assigned to buyer email ${newTenant.ownerEmail}.`,
       ip: '198.51.100.22',
       status: 'SUCCESS' as const,
     };
@@ -281,6 +348,13 @@ export function App() {
     );
   }
 
+  // Never render the private workspace based on browser state alone. A future
+  // server-side identity integration must populate currentUser after validating
+  // a session and tenant claims.
+  if (!currentUser) {
+    return <LandingView onGetStarted={() => setAppMode('pricing')} onSignIn={() => setAppMode('login')} />;
+  }
+
   // PLATFORM WORKSPACE MODE (MAIN VULNWIZ AI APPLICATION)
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--bg-primary)' }}>
@@ -288,9 +362,11 @@ export function App() {
       <Navbar
         tenant={tenant}
         currentRole={currentRole}
+        currentUser={currentUser}
         onRoleChange={handleRoleChange}
         onTenantChange={setTenant}
         onOpenRegisterModal={() => setShowRegisterModal(true)}
+        onOpenProfile={() => setShowProfileModal(true)}
         onSignOut={handleSignOut}
         notificationCount={notificationsCount}
       />
@@ -307,6 +383,7 @@ export function App() {
 
         {/* Center Content Workspace */}
         <main style={{ flex: 1, padding: '28px 36px', overflowY: 'auto', maxWidth: '1600px', margin: '0 auto' }}>
+          <Suspense fallback={<div className="loading-state" role="status">Loading workspace module…</div>}>
           {activeTab === 'dashboard' && (
             <DashboardView
               tenant={tenant}
@@ -406,10 +483,16 @@ export function App() {
           )}
 
           {activeTab === 'admin' && (
-            <AdminConsoleView />
+            <AdminConsoleView
+              onOpenProvisionModal={(email) => {
+                setProvisionInitialEmail(email || '');
+                setShowRegisterModal(true);
+              }}
+            />
           )}
 
           {/* Global App Footer */}
+          </Suspense>
           <footer style={{
             marginTop: '48px',
             paddingTop: '20px',
@@ -435,19 +518,38 @@ export function App() {
         </main>
       </div>
 
-      {/* Model A: Self-Service Tenant Registration & Provisioning Modal */}
+      {/* Model A: Seller Super Admin Organization Provisioning Modal */}
       {showRegisterModal && (
         <RegisterTenantModal
           onClose={() => {
             setShowRegisterModal(false);
             setIsFirstTimeUser(false);
+            setProvisionInitialEmail('');
           }}
           onTenantRegistered={handleTenantRegistered}
           initialOrgName={currentUser?.companyName}
-          initialEmail={currentUser?.email}
+          initialEmail={provisionInitialEmail || currentUser?.email || ''}
           initialPlan={currentUser?.selectedPlan}
           initialIndustry={currentUser?.industry}
           isFirstTimeOnboarding={isFirstTimeUser}
+        />
+      )}
+
+      {/* Accept Team Invitation & Onboarding Modal */}
+      {activeInvitation && (
+        <AcceptInviteModal
+          invitation={activeInvitation}
+          onClose={() => setActiveInvitation(null)}
+          onAcceptSuccess={handleAcceptInviteSuccess}
+        />
+      )}
+
+      {/* User Account Profile Modal */}
+      {showProfileModal && (
+        <UserProfileModal
+          user={currentUser}
+          onClose={() => setShowProfileModal(false)}
+          onUpdateUser={(updated) => setCurrentUserState(updated)}
         />
       )}
     </div>

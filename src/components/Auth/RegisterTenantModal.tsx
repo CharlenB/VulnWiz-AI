@@ -59,6 +59,8 @@ export const RegisterTenantModal: React.FC<RegisterTenantModalProps> = ({
         assetsCount: 2,
         totalVulns: 2,
         openCriticals: 1,
+        ownerEmail: adminEmail.toLowerCase().trim(),
+        associatedEmails: [adminEmail.toLowerCase().trim()],
       };
 
       const seedAssets: Asset[] = [
@@ -144,10 +146,10 @@ export const RegisterTenantModal: React.FC<RegisterTenantModalProps> = ({
             </div>
             <div>
               <h2 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-main)' }}>
-                {isFirstTimeOnboarding ? 'Welcome! Set Up Your Organization Tenant' : 'Register New Organization Tenant'}
+                {isFirstTimeOnboarding ? 'Welcome! Set Up Your Organization Tenant' : 'Provision Organization Tenant (Super Admin Only)'}
               </h2>
               <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>
-                {isFirstTimeOnboarding ? 'Configure your company details to activate your security workspace' : 'Self-Service Model A Tenant Onboarding & Provisioning'}
+                {isFirstTimeOnboarding ? 'Configure company details to activate security workspace' : 'Seller Admin: Assign an organization to a customer buyer email address'}
               </span>
             </div>
           </div>
@@ -199,12 +201,12 @@ export const RegisterTenantModal: React.FC<RegisterTenantModalProps> = ({
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
               <div>
                 <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-dim)', marginBottom: '6px' }}>
-                  Super Admin Email *
+                  Associated Customer Buyer Email *
                 </label>
                 <input
                   type="email"
                   required
-                  placeholder="e.g. charlen@lau.ai"
+                  placeholder="e.g. buyer@customer.com"
                   value={adminEmail}
                   onChange={e => setAdminEmail(e.target.value)}
                   style={{ width: '100%', padding: '10px', borderRadius: '6px', background: '#F8FAFC', border: '1px solid var(--border-color)', color: 'var(--text-main)', outline: 'none', fontSize: '0.85rem' }}

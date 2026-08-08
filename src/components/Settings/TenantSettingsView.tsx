@@ -10,9 +10,12 @@ import {
   X,
   UserPlus,
   Mail,
-  Copy
+  Copy,
+  ExternalLink
 } from 'lucide-react';
 import type { Tenant, AuditLog, UserRole } from '../../types';
+import { createInvitation } from '../../services/invitationService';
+import { getCurrentUser } from '../../services/saasAuthService';
 
 interface TenantSettingsViewProps {
   tenant: Tenant;
@@ -76,14 +79,24 @@ export const TenantSettingsView: React.FC<TenantSettingsViewProps> = ({
     e.preventDefault();
     if (!inviteName || !inviteEmail) return;
 
-    const inviteToken = `inv-${Math.random().toString(36).substring(2, 10)}`;
-    const inviteLink = `https://${tenant.domain}/accept-invite?token=${inviteToken}&email=${encodeURIComponent(inviteEmail)}`;
+    const currentUser = getCurrentUser();
+    const inviterName = currentUser?.fullName || 'Super Admin';
+    const inviterEmail = currentUser?.email || `admin@${tenant.domain}`;
+
+    const { invitation, inviteUrl } = createInvitation({
+      inviterName,
+      inviterEmail,
+      tenantId: tenant.id,
+      tenantName: tenant.name,
+      inviteeEmail: inviteEmail,
+      role: inviteRole,
+    });
 
     const newUser = {
       name: inviteName,
       email: inviteEmail,
       role: inviteRole,
-      status: 'Active' as const,
+      status: 'Pending' as const,
       mfa: inviteMfa ? 'TOTP Enabled' : 'Disabled',
     };
 
@@ -92,12 +105,12 @@ export const TenantSettingsView: React.FC<TenantSettingsViewProps> = ({
       name: inviteName,
       email: inviteEmail,
       role: inviteRole,
-      inviteLink,
+      inviteLink: inviteUrl,
     });
 
     setShowInviteModal(false);
     setShowInviteSuccessModal(true);
-    setInviteSuccessMessage(`Invitation email & Magic Link dispatched to ${inviteEmail}!`);
+    setInviteSuccessMessage(`Invitation email & Magic Link dispatched to ${inviteEmail}! Token created: ${invitation.token}`);
 
     setInviteName('');
     setInviteEmail('');
@@ -186,44 +199,44 @@ export const TenantSettingsView: React.FC<TenantSettingsViewProps> = ({
           
           <form onSubmit={handleSaveProfile} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <div>
-              <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-dim)', marginBottom: '6px' }}>
+              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-dim)', marginBottom: '6px' }}>
                 Organization Legal Name
               </label>
               <input
                 type="text"
                 value={tenantName}
                 onChange={e => setTenantName(e.target.value)}
-                style={{ width: '100%', padding: '10px', borderRadius: '6px', background: '#090D16', border: '1px solid var(--border-color)', color: '#fff', outline: 'none' }}
+                style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', background: '#FFFFFF', border: '1px solid var(--accent-purple)', color: 'var(--accent-purple)', fontWeight: 600, fontSize: '0.9rem', outline: 'none' }}
               />
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-dim)', marginBottom: '6px' }}>
+              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-dim)', marginBottom: '6px' }}>
                 Corporate Domain
               </label>
               <input
                 type="text"
                 value={domain}
                 onChange={e => setDomain(e.target.value)}
-                style={{ width: '100%', padding: '10px', borderRadius: '6px', background: '#090D16', border: '1px solid var(--border-color)', color: 'var(--accent-cyan)', fontFamily: 'var(--font-mono)', outline: 'none' }}
+                style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', background: '#FFFFFF', border: '1px solid var(--accent-purple)', color: 'var(--accent-purple)', fontWeight: 600, fontFamily: 'var(--font-mono)', fontSize: '0.9rem', outline: 'none' }}
               />
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-dim)', marginBottom: '6px' }}>
+              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-dim)', marginBottom: '6px' }}>
                 Industry Vertical
               </label>
               <input
                 type="text"
                 value={industry}
                 onChange={e => setIndustry(e.target.value)}
-                style={{ width: '100%', padding: '10px', borderRadius: '6px', background: '#090D16', border: '1px solid var(--border-color)', color: '#fff', outline: 'none' }}
+                style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', background: '#FFFFFF', border: '1px solid var(--accent-purple)', color: 'var(--accent-purple)', fontWeight: 600, fontSize: '0.9rem', outline: 'none' }}
               />
             </div>
 
-            <div style={{ background: '#070B14', padding: '14px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-              <strong style={{ fontSize: '0.85rem', color: 'var(--accent-green)' }}>Subscription Plan: {tenant.plan}</strong>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+            <div style={{ background: 'linear-gradient(135deg, #F3E8FF 0%, #EDE9FE 100%)', padding: '14px', borderRadius: '8px', border: '1px solid #DDD6FE' }}>
+              <strong style={{ fontSize: '0.875rem', color: 'var(--accent-purple)' }}>Subscription Plan: {tenant.plan}</strong>
+              <div style={{ fontSize: '0.775rem', color: '#475569', marginTop: '4px', lineHeight: 1.4 }}>
                 Includes Unlimited Scanning, AI Analyst Engine, Row-Level Tenant Isolation, and 24/7 Support.
               </div>
             </div>
@@ -484,7 +497,17 @@ export const TenantSettingsView: React.FC<TenantSettingsViewProps> = ({
                 💡 An invitation email has been dispatched via SMTP. You can also manually copy and send the Magic Link above directly to the user.
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '8px', borderTop: '1px solid var(--border-color)', paddingTop: '14px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '8px', borderTop: '1px solid var(--border-color)', paddingTop: '14px' }}>
+                <button 
+                  type="button" 
+                  className="btn-secondary" 
+                  onClick={() => {
+                    window.location.href = lastInvitedUser.inviteLink;
+                  }}
+                  style={{ borderColor: 'var(--accent-cyan)', color: 'var(--accent-cyan)', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem' }}
+                >
+                  <ExternalLink size={14} /> Test Open Link (Simulate Recipient)
+                </button>
                 <button type="button" className="btn-primary" onClick={() => setShowInviteSuccessModal(false)}>
                   Done
                 </button>

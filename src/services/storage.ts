@@ -1,19 +1,7 @@
 import type { Asset, Vulnerability, Tenant, AuditLog, NvdVulnIntel, SbomPackage, ComplianceRequirement } from '../types';
+import { INITIAL_TENANTS } from './tenantService';
 
-export const MOCK_TENANTS: Tenant[] = [
-  {
-    id: 'tenant-acme-corp-01',
-    name: 'Acme Financial Security Inc.',
-    domain: 'acmefinancial.com',
-    industry: 'FinTech & Banking Services',
-    plan: 'Enterprise MSSP',
-    securityScore: 82,
-    previousScore: 76,
-    assetsCount: 14,
-    totalVulns: 28,
-    openCriticals: 3,
-  },
-];
+export const MOCK_TENANTS: Tenant[] = INITIAL_TENANTS;
 
 export const INITIAL_TENANT: Tenant = MOCK_TENANTS[0];
 
