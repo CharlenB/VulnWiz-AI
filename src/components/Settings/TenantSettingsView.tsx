@@ -14,8 +14,6 @@ import {
   ExternalLink
 } from 'lucide-react';
 import type { Tenant, AuditLog, UserRole } from '../../types';
-import { createInvitation } from '../../services/invitationService';
-import { getCurrentUser } from '../../services/saasAuthService';
 
 interface TenantSettingsViewProps {
   tenant: Tenant;
@@ -40,7 +38,7 @@ export const TenantSettingsView: React.FC<TenantSettingsViewProps> = ({
   const [savedSuccess, setSavedSuccess] = useState(false);
 
   // Users & Invite Modal state
-  const [users, setUsers] = useState([
+  const [users] = useState([
     { name: 'Sarah Connor', email: 'sarah.connor@acmefinancial.com', role: 'Security Analyst' as UserRole, status: 'Active', mfa: 'TOTP Enabled' },
     { name: 'Alex Vance', email: 'alex.vance@acmefinancial.com', role: 'Super Admin' as UserRole, status: 'Active', mfa: 'WebAuthn Security Key' },
     { name: 'Mark Redfield', email: 'mark.redfield@acmefinancial.com', role: 'Developer' as UserRole, status: 'Active', mfa: 'TOTP Enabled' },
@@ -55,7 +53,7 @@ export const TenantSettingsView: React.FC<TenantSettingsViewProps> = ({
   // Invitation Success & Magic Link Dispatch state
   const [inviteSuccessMessage, setInviteSuccessMessage] = useState<string | null>(null);
   const [copiedLinkSuccess, setCopiedLinkSuccess] = useState<boolean>(false);
-  const [lastInvitedUser, setLastInvitedUser] = useState<{
+  const [lastInvitedUser] = useState<{
     name: string;
     email: string;
     role: UserRole;
@@ -78,42 +76,8 @@ export const TenantSettingsView: React.FC<TenantSettingsViewProps> = ({
   const handleInviteUserSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!inviteName || !inviteEmail) return;
-
-    const currentUser = getCurrentUser();
-    const inviterName = currentUser?.fullName || 'Super Admin';
-    const inviterEmail = currentUser?.email || `admin@${tenant.domain}`;
-
-    const { invitation, inviteUrl } = createInvitation({
-      inviterName,
-      inviterEmail,
-      tenantId: tenant.id,
-      tenantName: tenant.name,
-      inviteeEmail: inviteEmail,
-      role: inviteRole,
-    });
-
-    const newUser = {
-      name: inviteName,
-      email: inviteEmail,
-      role: inviteRole,
-      status: 'Pending' as const,
-      mfa: inviteMfa ? 'TOTP Enabled' : 'Disabled',
-    };
-
-    setUsers(prev => [newUser, ...prev]);
-    setLastInvitedUser({
-      name: inviteName,
-      email: inviteEmail,
-      role: inviteRole,
-      inviteLink: inviteUrl,
-    });
-
     setShowInviteModal(false);
-    setShowInviteSuccessModal(true);
-    setInviteSuccessMessage(`Invitation email & Magic Link dispatched to ${inviteEmail}! Token created: ${invitation.token}`);
-
-    setInviteName('');
-    setInviteEmail('');
+    setInviteSuccessMessage('Invitations are disabled until a server-side invitation endpoint assigns tenant memberships securely.');
   };
 
   const filteredLogs = auditLogs.filter(l => 

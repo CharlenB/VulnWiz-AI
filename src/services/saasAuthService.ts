@@ -1,14 +1,12 @@
-import type { AccountStatus, BillingCycle, PaymentRecord, TenantPlan, UserAccount } from '../types';
+import type { AccountStatus, BillingCycle, PaymentRecord, TenantPlan, UserAccount, UserRole } from '../types';
+import { isSupabaseConfigured, supabase } from './supabaseClient';
 
-/**
- * This SPA intentionally does not implement identity or billing. Those are
- * security boundaries and must be provided by a server-side integration.
- * Keeping a client-side substitute here would create a production bypass.
- */
-const AUTH_CONFIGURATION_MESSAGE =
-  'Authentication is not configured. Connect a server-side identity provider before enabling accounts.';
-const BILLING_CONFIGURATION_MESSAGE =
-  'Checkout is not configured. Connect Stripe through a server-side payment service.';
+const AUTH_CONFIGURATION_MESSAGE = 'Authentication is unavailable. Contact your administrator if this persists.';
+const BILLING_CONFIGURATION_MESSAGE = 'Checkout is not configured. Connect Stripe through a server-side payment service.';
+const VALID_ROLES: UserRole[] = ['Super Admin', 'Security Analyst', 'Client Admin', 'Developer', 'Executive Viewer'];
+
+type Membership = { tenant_id: string; role: string };
+export type AuthenticatedUser = UserAccount & { tenantId: string };
 
 export interface PasswordStrength {
   score: number;
@@ -47,39 +45,78 @@ export interface RegistrationInput {
   email: string;
   companyName: string;
   password: string;
-  phone?: string;
-  industry?: string;
-  companySize?: string;
   selectedPlan: TenantPlan;
   billingCycle: BillingCycle;
 }
 
-export interface PaymentDetailsInput {
-  cardNumber: string;
-  expiry: string;
-  cvv: string;
-  cardholderName: string;
-  billingZip: string;
+export interface PaymentDetailsInput { cardNumber: string; expiry: string; cvv: string; cardholderName: string; billingZip: string; }
+
+async function resolveCurrentUser(): Promise<{ user?: AuthenticatedUser; error?: string }> {
+  if (!supabase || !isSupabaseConfigured) return { error: AUTH_CONFIGURATION_MESSAGE };
+  const { data: { user }, error: userError } = await supabase.auth.getUser();
+  if (userError || !user) return {};
+
+  const { data: membership, error: membershipError } = await supabase
+    .from('tenant_memberships')
+    .select('tenant_id, role')
+    .eq('user_id', user.id)
+    .limit(1)
+    .maybeSingle<Membership>();
+
+  if (membershipError) return { error: 'Workspace access could not be verified. Contact your administrator.' };
+  if (!membership || !VALID_ROLES.includes(membership.role as UserRole)) {
+    return { error: 'Your account is authenticated but has not been assigned to a workspace.' };
+  }
+
+  const metadata = user.user_metadata ?? {};
+  return {
+    user: {
+      id: user.id,
+      tenantId: membership.tenant_id,
+      fullName: typeof metadata.full_name === 'string' ? metadata.full_name : user.email?.split('@')[0] || 'User',
+      email: user.email || '',
+      companyName: typeof metadata.company_name === 'string' ? metadata.company_name : 'VulnWiz Workspace',
+      role: membership.role as UserRole,
+      status: 'ACTIVE' as AccountStatus,
+      createdAt: user.created_at,
+      selectedPlan: 'Standard Pro',
+      billingCycle: 'monthly',
+    },
+  };
 }
 
+export async function getCurrentUser(): Promise<AuthenticatedUser | null> {
+  const { user } = await resolveCurrentUser();
+  return user ?? null;
+}
+
+export async function authenticateUser(email: string, password: string): Promise<{ success: boolean; user?: AuthenticatedUser; error?: string }> {
+  if (!supabase || !isSupabaseConfigured) return { success: false, error: AUTH_CONFIGURATION_MESSAGE };
+  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  if (error) return { success: false, error: 'Invalid email address or password.' };
+  const resolved = await resolveCurrentUser();
+  return resolved.user ? { success: true, user: resolved.user } : { success: false, error: resolved.error || AUTH_CONFIGURATION_MESSAGE };
+}
+
+export async function registerPendingUser(input: RegistrationInput): Promise<{ success: boolean; error?: string }> {
+  if (!supabase || !isSupabaseConfigured) return { success: false, error: AUTH_CONFIGURATION_MESSAGE };
+  const { error } = await supabase.auth.signUp({
+    email: input.email,
+    password: input.password,
+    options: {
+      emailRedirectTo: `${window.location.origin}/`,
+      data: { full_name: input.fullName, company_name: input.companyName },
+    },
+  });
+  return error ? { success: false, error: error.message } : { success: true };
+}
+
+export async function signOut(): Promise<void> { await supabase?.auth.signOut(); }
+
+// Billing and account-state changes remain server-owned.
 export function getUsers(): UserAccount[] { return []; }
-export function saveUsers(_users: UserAccount[]): void { /* server-owned in production */ }
-export function getCurrentUser(): UserAccount | null { return null; }
-export function setCurrentUser(_user: UserAccount | null): void { /* server-owned in production */ }
+export function saveUsers(_users: UserAccount[]): void { /* server-owned */ }
+export function setCurrentUser(_user: UserAccount | null): void { /* retained for legacy preview callers */ }
 export function getPaymentRecords(): PaymentRecord[] { return []; }
-
-export function registerPendingUser(_input: RegistrationInput): { success: boolean; error: string } {
-  return { success: false, error: AUTH_CONFIGURATION_MESSAGE };
-}
-
-export function authenticateUser(_email: string, _password: string): { success: boolean; user?: UserAccount; error: string } {
-  return { success: false, error: AUTH_CONFIGURATION_MESSAGE };
-}
-
-export function processStripePayment(_user: UserAccount, _details: PaymentDetailsInput): { success: boolean; error: string } {
-  return { success: false, error: BILLING_CONFIGURATION_MESSAGE };
-}
-
-export function updateUserAccountStatus(_userId: string, _newStatus: AccountStatus): UserAccount[] {
-  return [];
-}
+export function processStripePayment(_user: UserAccount, _details: PaymentDetailsInput): { success: boolean; error: string } { return { success: false, error: BILLING_CONFIGURATION_MESSAGE }; }
+export function updateUserAccountStatus(_userId: string, _newStatus: AccountStatus): UserAccount[] { return []; }

@@ -21,7 +21,6 @@ import { CheckoutView } from './components/Checkout/CheckoutView';
 import { LoginView } from './components/Auth/LoginView';
 
 import { RegisterTenantModal } from './components/Auth/RegisterTenantModal';
-import { AcceptInviteModal } from './components/Auth/AcceptInviteModal';
 import { UserProfileModal } from './components/Profile/UserProfileModal';
 
 const ScannerView = lazy(() => import('./components/Scanner/ScannerView').then(module => ({ default: module.ScannerView })));
@@ -36,64 +35,41 @@ import {
 } from './services/storage';
 
 import type { Tenant, Asset, Vulnerability, ScanJob, VulnStatus, UserRole, TenantPlan, BillingCycle, UserAccount } from './types';
-import { isTabAllowedForRole } from './services/rbacService';
-import { getCurrentUser, setCurrentUser } from './services/saasAuthService';
-import { getInvitationByToken, type UserInvitation } from './services/invitationService';
+import { getCurrentUser, signOut } from './services/saasAuthService';
+import { supabase } from './services/supabaseClient';
 import { getTenantsForUser, addTenantBySuperAdmin } from './services/tenantService';
 
 export function App() {
   // App Mode State: 'landing' | 'pricing' | 'signup' | 'checkout' | 'login' | 'platform'
   const [appMode, setAppMode] = useState<'landing' | 'pricing' | 'signup' | 'checkout' | 'login' | 'platform'>('landing');
-  const [currentUser, setCurrentUserState] = useState<UserAccount | null>(getCurrentUser());
+  const [currentUser, setCurrentUserState] = useState<UserAccount | null>(null);
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
 
   // User Invitation State
-  const [activeInvitation, setActiveInvitation] = useState<UserInvitation | null>(null);
   const [showProfileModal, setShowProfileModal] = useState<boolean>(false);
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const token = params.get('inviteToken');
-    if (token) {
-      const invitation = getInvitationByToken(token);
-      if (invitation && invitation.status === 'pending') {
-        setActiveInvitation(invitation);
+    let mounted = true;
+    const syncUser = async () => {
+      const user = await getCurrentUser();
+      if (!mounted) return;
+      setCurrentUserState(user);
+      if (user) {
+        setCurrentRole(user.role);
+        setAppMode('platform');
       }
-    }
+      setIsAuthLoading(false);
+    };
+    void syncUser();
+    const { data: { subscription } } = supabase?.auth.onAuthStateChange(() => { void syncUser(); }) ?? { data: { subscription: null } };
+    return () => {
+      mounted = false;
+      subscription?.unsubscribe();
+    };
   }, []);
 
-  const handleAcceptInviteSuccess = (user: UserAccount) => {
-    setCurrentUserState(user);
-    setCurrentRole(user.role);
-    setTenant(prev => ({
-      ...prev,
-      name: user.companyName || prev.name,
-    }));
-    setActiveInvitation(null);
-    setAppMode('platform');
-    setActiveTab('dashboard');
-
-    // Clean up URL parameter
-    const url = new URL(window.location.href);
-    url.searchParams.delete('inviteToken');
-    window.history.replaceState({}, '', url.toString());
-
-    // Add immutable audit trail log
-    const newLog = {
-      id: `log-${Date.now()}`,
-      timestamp: new Date().toISOString().replace('T', ' ').slice(0, 19),
-      user: user.email,
-      role: user.role,
-      action: 'USER_INVITE_ACCEPTED',
-      details: `Team member accepted invitation and registered active account under ${user.role} role.`,
-      ip: '198.51.100.89',
-      status: 'SUCCESS' as const,
-    };
-    setAuditLogs(prev => [newLog, ...prev]);
-  };
-
-  const handleSignOut = () => {
-    setCurrentUser(null);
-    setCurrentUserState(null);
+  const handleSignOut = async () => {
+    await signOut();
     setCurrentUserState(null);
     setAppMode('landing');
   };
@@ -105,11 +81,7 @@ export function App() {
   // Platform Active Workspace State
   const [activeTab, setActiveTab] = useState<NavTab>('dashboard');
   const [currentRole, setCurrentRole] = useState<UserRole>('Security Analyst');
-  const [tenant, setTenant] = useState<Tenant>(() => {
-    const initialUser = getCurrentUser();
-    const available = getTenantsForUser(initialUser?.email, true);
-    return available[0] || INITIAL_TENANT;
-  });
+  const [tenant, setTenant] = useState<Tenant>(INITIAL_TENANT);
   const [assets, setAssets] = useState<Asset[]>(INITIAL_ASSETS);
   const [vulnerabilities, setVulnerabilities] = useState<Vulnerability[]>(INITIAL_VULNERABILITIES);
   const [auditLogs, setAuditLogs] = useState(INITIAL_AUDIT_LOGS);
@@ -128,12 +100,8 @@ export function App() {
     }
   }, [currentUser, currentRole]);
 
-  const handleRoleChange = (newRole: UserRole) => {
-    setCurrentRole(newRole);
-    if (!isTabAllowedForRole(activeTab, newRole)) {
-      setActiveTab('dashboard');
-    }
-  };
+  // Roles are assigned through the tenant_memberships table, never by the UI.
+  const handleRoleChange = (_newRole: UserRole) => undefined;
 
   const [isFirstTimeUser, setIsFirstTimeUser] = useState<boolean>(false);
 
@@ -265,6 +233,10 @@ export function App() {
   const notificationsCount = vulnerabilities.filter(v => v.severity === 'critical' && v.status === 'new').length;
 
   // ROUTING RENDER LOGIC BASED ON APP MODE
+  if (isAuthLoading) {
+    return <main className="secure-notice-page"><p className="loading-state" role="status">Checking secure session…</p></main>;
+  }
+
   if (appMode === 'landing') {
     return (
       <LandingView
@@ -299,9 +271,7 @@ export function App() {
         selectedPlan={signupPlan}
         billingCycle={signupCycle}
         onSignupSuccess={() => {
-          const user = getCurrentUser();
-          if (user) setCurrentUserState(user);
-          setAppMode('checkout');
+          setAppMode('login');
         }}
         onBackToPricing={() => setAppMode('pricing')}
         onSignIn={() => setAppMode('login')}
@@ -310,17 +280,16 @@ export function App() {
   }
 
   if (appMode === 'checkout') {
-    const activeUser = currentUser || getCurrentUser();
+    const activeUser = currentUser;
     if (!activeUser) {
-      setAppMode('signup');
-      return null;
+      return <LandingView onGetStarted={() => setAppMode('pricing')} onSignIn={() => setAppMode('login')} />;
     }
 
     return (
       <CheckoutView
         user={activeUser}
-        onPaymentSuccess={() => {
-          const user = getCurrentUser();
+        onPaymentSuccess={async () => {
+          const user = await getCurrentUser();
           if (user) setCurrentUserState(user);
           setIsFirstTimeUser(true);
           setShowRegisterModal(true);
@@ -532,15 +501,6 @@ export function App() {
           initialPlan={currentUser?.selectedPlan}
           initialIndustry={currentUser?.industry}
           isFirstTimeOnboarding={isFirstTimeUser}
-        />
-      )}
-
-      {/* Accept Team Invitation & Onboarding Modal */}
-      {activeInvitation && (
-        <AcceptInviteModal
-          invitation={activeInvitation}
-          onClose={() => setActiveInvitation(null)}
-          onAcceptSuccess={handleAcceptInviteSuccess}
         />
       )}
 
