@@ -100,7 +100,7 @@ export async function authenticateUser(email: string, password: string): Promise
 
 export async function registerPendingUser(input: RegistrationInput): Promise<{ success: boolean; error?: string }> {
   if (!supabase || !isSupabaseConfigured) return { success: false, error: AUTH_CONFIGURATION_MESSAGE };
-  const { error } = await supabase.auth.signUp({
+  const { data, error } = await supabase.auth.signUp({
     email: input.email,
     password: input.password,
     options: {
@@ -108,7 +108,18 @@ export async function registerPendingUser(input: RegistrationInput): Promise<{ s
       data: { full_name: input.fullName, company_name: input.companyName },
     },
   });
-  return error ? { success: false, error: error.message } : { success: true };
+  if (error) return { success: false, error: error.message };
+
+  // A non-null session means Supabase Confirm Email is disabled. Do not treat
+  // this as a successful verified signup in the UI.
+  if (data.session) {
+    await supabase.auth.signOut();
+    return {
+      success: false,
+      error: 'Email confirmation is not enabled. Enable Confirm Email in Supabase before allowing signups.',
+    };
+  }
+  return { success: true };
 }
 
 export async function signOut(): Promise<void> { await supabase?.auth.signOut(); }

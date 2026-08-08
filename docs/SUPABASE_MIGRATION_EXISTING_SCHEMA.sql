@@ -79,14 +79,17 @@ where legacy_user.tenant_id is not null
   and legacy_user.auth_user_id is not null
 on conflict (tenant_id, user_id) do nothing;
 
--- 4. Auth trigger: creates only a profile. Tenant membership is provisioned by
--- an administrator/server-side invitation flow, never by user metadata.
+-- 4. Auth trigger: each self-service signup receives a new, isolated tenant
+-- that only it owns. It never uses metadata to select an existing tenant.
 create or replace function public.handle_new_auth_user()
 returns trigger
 language plpgsql
 security definer
 set search_path = ''
 as $$
+declare
+  workspace_id uuid;
+  workspace_name text;
 begin
   insert into public.profiles (id, full_name, company_name)
   values (
@@ -95,6 +98,17 @@ begin
     nullif(new.raw_user_meta_data ->> 'company_name', '')
   )
   on conflict (id) do nothing;
+
+  workspace_name := left(
+    coalesce(nullif(btrim(new.raw_user_meta_data ->> 'company_name'), ''), 'My Workspace'),
+    255
+  );
+  insert into public.tenants (name, domain)
+  values (workspace_name, 'tenant-' || new.id::text)
+  returning id into workspace_id;
+
+  insert into public.tenant_memberships (tenant_id, user_id, role)
+  values (workspace_id, new.id, 'Super Admin');
   return new;
 end;
 $$;

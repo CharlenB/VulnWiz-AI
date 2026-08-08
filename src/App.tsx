@@ -270,9 +270,6 @@ export function App() {
       <SignupView
         selectedPlan={signupPlan}
         billingCycle={signupCycle}
-        onSignupSuccess={() => {
-          setAppMode('login');
-        }}
         onBackToPricing={() => setAppMode('pricing')}
         onSignIn={() => setAppMode('login')}
       />

@@ -190,6 +190,9 @@ $$;
 
 create or replace function public.handle_new_auth_user()
 returns trigger language plpgsql security definer set search_path = '' as $$
+declare
+  workspace_id uuid;
+  workspace_name text;
 begin
   insert into public.profiles (id, full_name, company_name)
   values (
@@ -197,6 +200,20 @@ begin
     coalesce(new.raw_user_meta_data ->> 'full_name', ''),
     nullif(new.raw_user_meta_data ->> 'company_name', '')
   ) on conflict (id) do nothing;
+
+  -- Self-service signup owns a brand-new tenant only. The tenant identifier is
+  -- generated server-side, so user-supplied metadata cannot select or join a
+  -- different customer's workspace.
+  workspace_name := left(
+    coalesce(nullif(btrim(new.raw_user_meta_data ->> 'company_name'), ''), 'My Workspace'),
+    255
+  );
+  insert into public.tenants (name, domain)
+  values (workspace_name, 'tenant-' || new.id::text)
+  returning id into workspace_id;
+
+  insert into public.tenant_memberships (tenant_id, user_id, role)
+  values (workspace_id, new.id, 'Super Admin');
   return new;
 end;
 $$;

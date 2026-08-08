@@ -6,19 +6,18 @@ import { registerPendingUser, validateStrongPassword } from '../../services/saas
 interface SignupViewProps {
   selectedPlan: TenantPlan;
   billingCycle: BillingCycle;
-  onSignupSuccess: () => void;
   onBackToPricing: () => void;
   onSignIn: () => void;
 }
 
-export const SignupView: React.FC<SignupViewProps> = ({ selectedPlan, billingCycle, onSignupSuccess, onBackToPricing, onSignIn }) => {
+export const SignupView: React.FC<SignupViewProps> = ({ selectedPlan, billingCycle, onBackToPricing, onSignIn }) => {
   const [fullName, setFullName] = useState('');
   const [companyName, setCompanyName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmation, setConfirmation] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
+  const [isConfirmationPending, setIsConfirmationPending] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const submit = async (event: React.FormEvent) => {
@@ -31,19 +30,20 @@ export const SignupView: React.FC<SignupViewProps> = ({ selectedPlan, billingCyc
     const result = await registerPendingUser({ fullName, companyName, email, password, selectedPlan, billingCycle });
     setIsSubmitting(false);
     if (!result.success) return setError(result.error || 'Unable to create the account.');
-    setMessage('Check your email to confirm your account. An administrator must then assign you to a tenant workspace.');
-    onSignupSuccess();
+    setIsConfirmationPending(true);
   };
 
   return (
     <main className="secure-notice-page">
       <section className="glass-panel secure-notice" aria-labelledby="signup-title">
         <div className="secure-notice-icon" aria-hidden="true"><ShieldCheck size={28} /></div>
-        <h1 id="signup-title">Create account</h1>
-        <p>{selectedPlan} · {billingCycle} billing. Account access requires email confirmation and a tenant assignment.</p>
+        <h1 id="signup-title">{isConfirmationPending ? 'Confirm your email' : 'Create account'}</h1>
+        <p>{isConfirmationPending
+          ? `We sent a confirmation link to ${email}. Open it to verify your address, then return here to sign in.`
+          : `${selectedPlan} · ${billingCycle} billing. Account access requires email confirmation.`}</p>
         {error && <div className="secure-notice-warning" role="alert"><AlertCircle size={18} aria-hidden="true" />{error}</div>}
-        {message && <div className="secure-notice-success" role="status">{message}</div>}
-        <form onSubmit={submit} className="auth-form">
+        {isConfirmationPending && <div className="secure-notice-success" role="status">Your workspace will be created automatically once the account is registered. You cannot sign in until you confirm your email.</div>}
+        {!isConfirmationPending && <form onSubmit={submit} className="auth-form">
           <label htmlFor="signup-name">Full name</label>
           <input id="signup-name" autoComplete="name" value={fullName} onChange={event => setFullName(event.target.value)} required />
           <label htmlFor="signup-company">Company</label>
@@ -56,6 +56,7 @@ export const SignupView: React.FC<SignupViewProps> = ({ selectedPlan, billingCyc
           <input id="signup-confirmation" type="password" autoComplete="new-password" value={confirmation} onChange={event => setConfirmation(event.target.value)} required />
           <button type="submit" className="btn-primary" disabled={isSubmitting}>{isSubmitting ? 'Creating account…' : 'Create account'}</button>
         </form>
+        }
         <div className="auth-actions"><button type="button" className="btn-secondary" onClick={onBackToPricing}><ArrowLeft size={16} aria-hidden="true" /> Pricing</button><button type="button" className="btn-secondary" onClick={onSignIn}>Sign in</button></div>
       </section>
     </main>
